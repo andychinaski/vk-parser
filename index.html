@@ -1,60 +1,179 @@
 <!DOCTYPE HTML>
-<html lang="ru"><head>
-	<meta charset="utf-8">
-	<title>Сохранение списка друзей ВК</title>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Парсер данных ВКонтакте</title>
 
-	<link rel="shortcut icon" href="https://favicon.yandex.net/favicon/vk.com">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" href="https://favicon.yandex.net/favicon/vk.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha256-PI8n5gCcz9cQqQXm3PEtDuPG8qx9oFsFctPg0S5zb8g=" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha256-PI8n5gCcz9cQqQXm3PEtDuPG8qx9oFsFctPg0S5zb8g=" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-	<style>
-		header { margin-top: 10px; }
-		form { margin-bottom: 15px; }
-		.btn-dl { display: none; }
+    <style>
+        body { background-color: #f8f9fa; }
+        .btn-dl { display: none; }
+        .alert-no-vk-token:not([data-show]) { display: none; }
+        
+        /* Стили для бокового меню внутри карточки */
+        .nav-pills .nav-link {
+            color: #495057;
+            border-radius: 6px;
+            margin-bottom: 5px;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        .nav-pills .nav-link:hover:not(.active):not(.disabled) {
+            background-color: #e9ecef;
+        }
+        
+        /* Разделитель между меню и контентом */
+        .border-start-md {
+            border-left: 1px solid #dee2e6;
+        }
+        @media (max-width: 767.98px) {
+            .border-start-md {
+                border-left: 0;
+                border-top: 1px solid #dee2e6;
+                padding-top: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        
+        <div class="card shadow border-0">
+            
+            <div class="card-header bg-white pt-4 px-4 pb-3 border-bottom-0">
+                <div class="text-center mb-3">
+                    <h3 class="fw-bold mb-1">Инструмент сбора данных из ВКонтакте</h3>
+                    <p class="text-muted small mb-0">Универсальный парсер открытых данных профилей</p>
+                </div>
 
-		.alert-no-vk-token:not([data-show]) { display: none; }
+                <div class="alert alert-no-vk-token alert-danger d-flex align-items-center mb-2 d-none" role="alert">
+					<i class="bi bi-exclamation-triangle-fill me-2"></i>
+					<div>
+						Внимание! Вам необходимо <a class="alert-link" href="./auth.html">пройти авторизацию</a>, иначе приложение работать не будет.
+					</div>
+				</div>	
 
-		.table-danger { word-break: break-all;  }
-	</style>
-</head><body>
-	<div class="container">
-		<div class="col-xl-10">
-			<header class="text-center"><h3>Сохранение списка друзей пользователя ВК</h3></header>
+                <div class="alert alert-warning alert-dismissible fade show mb-0" role="alert">
+                    <i class="bi bi-shield-lock-fill me-2"></i>
+                    Сервис не собирает и не хранит <b>никаких</b> персональных данных. Токен сохраняется в локальном хранилище браузера. Ознакомьтесь с <a class="alert-link" href="https://vk.com/privacy" target="_blank" rel="nofollow noopener">политикой конфиденциальности ВК</a>.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
 
-			<div class="alert alert-no-vk-token alert-danger" role="alert">Внимание! Согласно правилам использования API ВКонтакте, вам необходимо <a class="alert-link" href="./auth.html">пройти авторизацию</a>, иначе приложение работать не будет.</div>
+            <div class="card-body p-0">
+                <div class="row g-0 border-top">
+                    
+                    <div class="col-md-3 p-4 bg-light">
+                        <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.8rem; letter-spacing: 1px;">Инструменты</h6>
+                        <ul class="nav nav-pills flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#"><i class="bi bi-people-fill me-2"></i>Друзья</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link disabled" href="#"><i class="bi bi-building me-2"></i>Сообщества <span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">SOON</span></a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link disabled" href="#"><i class="bi bi-person-plus-fill me-2"></i>Подписчики <span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">SOON</span></a>
+                            </li>
+                        </ul>
+                    </div>
 
-			<div class="alert alert-warning" role="alert">Сервис не собирает и не хранит <b>никаких</b> персональных данных пользователей. Токен авторизации сохраняется в браузере пользователя приложения, а все запросы выполняются напрямую к API ВКонтакте. Ознакомьтесь с <a class="alert-link" href="https://vk.com/privacy" target="_blank" rel="nofollow noopener">политикой конфиденциальности ВК</a>.</div>
+                    <div class="col-md-9 p-4 border-start-md bg-white">
+                        
+                        <div class="row g-4 mb-4">
+                            
+                            <div class="col-lg-5">
+                                <h6 class="fw-bold mb-3">1. Введите ID пользователя</h6>
+                                <p class="text-muted small mb-3">Например, для профиля vk.com/id1 введите просто цифру <b>1</b>.</p>
+                                
+                                <form onsubmit="return false;">
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text bg-light text-muted">vk.com/id</span>
+                                        <input type="number" class="form-control id" placeholder="ID" min="1">
+                                        <button class="btn btn-secondary btn-get" type="submit">KA-BOOM!</button>
+                                    </div>
+                                    <a href="javascript:void(0);" class="btn btn-success btn-dl w-100"><i class="bi bi-file-earmark-arrow-down me-2"></i>Скачать файлик</a>
+                                </form>
+                            </div>
 
-			<p>Введите цифры, которые идут после <b>/id</b> в адресе. Например, для того, чтобы получить список друзей у vk.com/id1, нужно ввести <b>1</b>. Узнать полный id пользователя, если у него поставлен ник (напр. vk.com/durov) можно <a href="./get-id.html" target="_blank">здесь</a>. Скрытых друзей можно попробовать поискать <a href="https://vk.com/app3256362" target="_blank" rel="nofollow noopener">тут</a>.</p>
+                            <div class="col-lg-7">
+                                <h6 class="fw-bold mb-3">2. Какие данные собираем?</h6>
+                                <div class="row g-2">
+                                    <div class="col-sm-6">
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="field-id" checked disabled>
+                                            <label class="form-check-label text-muted" for="field-id">ID и Имя Фамилия</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input field-param" type="checkbox" id="field-bdate" value="bdate" checked>
+                                            <label class="form-check-label" for="field-bdate">Дата рождения</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input field-param" type="checkbox" id="field-city" value="city" checked>
+                                            <label class="form-check-label" for="field-city">Город</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input field-param" type="checkbox" id="field-photo" value="photo_100">
+                                            <label class="form-check-label" for="field-photo">Фото профиля</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input field-param" type="checkbox" id="field-domain" value="domain">
+                                            <label class="form-check-label" for="field-domain">Короткий адрес</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input field-param" type="checkbox" id="field-contacts" value="contacts">
+                                            <label class="form-check-label" for="field-contacts">Контакты</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-			<p>Если при запросе выдаётся ошибка <q>Error: JSONP request to https://api.vk.com/...</q>, то необходимо отключить блокировщики рекламы и/или скриптов.</p>
+                        <div class="border rounded">
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-hover mb-0" id="results-table">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Фото</th>
+                                            <th>Имя/Фамилия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="text-center text-muted">
+                                            <td colspan="3" class="py-4">Здесь появится список друзей после нажатия кнопки "KA-BOOM!"</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
-			<form class="col-xl-5 form-row" onsubmit="return false;">
-				<div class="input-group">
-					<span class="input-group-text">vk.com/id</span>
-					<input type="number" class="form-control id" placeholder="ID" min="1">
-					<button class="btn btn-secondary btn-get" type="submit">KA-BOOM!</button>
-				</div>
-				<div class="mt-1">
-					<a href="javascript:void(0);" class="btn btn-primary btn-dl">Скачать файлик</a>
-				</div>
-			</form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light text-center text-muted small py-2">
+                Сделано на базе open-source репозитория
+            </div>
+        </div>
+        
+    </div>
 
-			<table class="table table-hover">
-				<thead><tr>
-					<th>ID</th>
-					<th>Имя/Фамилия</th>
-				</tr></thead>
-				<tbody></tbody>
-			</table>
-		</div>
-	</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/fetch-jsonp@1.3.0/build/fetch-jsonp.js" integrity="sha256-CBIx2ePFHu5vTNWO+boq6xW8wFbMWPB6zZE/tKJ20eQ=" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/hi-base64@0.3.1/build/base64.min.js" integrity="sha256-zkyil4Fsk23oo0qfZ7Mz6kw8ntrrY/6uDSUyxR44Obo=" crossorigin="anonymous" defer></script>
 
-	<script src="https://cdn.jsdelivr.net/npm/fetch-jsonp@1.3.0/build/fetch-jsonp.js" integrity="sha256-CBIx2ePFHu5vTNWO+boq6xW8wFbMWPB6zZE/tKJ20eQ=" crossorigin="anonymous" defer></script>
-	<script src="https://cdn.jsdelivr.net/npm/hi-base64@0.3.1/build/base64.min.js" integrity="sha256-zkyil4Fsk23oo0qfZ7Mz6kw8ntrrY/6uDSUyxR44Obo=" crossorigin="anonymous" defer></script>
-
-	<script src="./js/config.js" defer></script>
-	<script src="./js/vk-token-check.js" defer></script>
-	<script src="./js/main.js" defer></script>
-</body></html>
+    <script src="./js/config.js" defer></script>
+    <script src="./js/vk-token-check.js" defer></script>
+    <script src="./js/main.js" defer></script>
+</body>
+</html>
