@@ -89,21 +89,36 @@
                         
                         <div class="row g-4 mb-4">
                             
-                            <div class="col-lg-5">
-                                <h6 class="fw-bold mb-3">1. Введите ID пользователя</h6>
-                                <p class="text-muted small mb-3">Например, для профиля vk.com/id1 введите просто цифру <b>1</b>.</p>
+                            <div class="col-lg-7">
+                                <h6 class="fw-bold mb-3">1. Введите ID пользователя или ссылку</h6>
+                                <p class="text-muted small mb-3">
+                                    Примеры:<br>
+                                    • <b>1</b> или <b>id1</b><br>
+                                    • <b>durov</b><br>
+                                    • <b>https://vk.com/durov</b>
+                                </p>
                                 
                                 <form onsubmit="return false;">
-                                    <div class="input-group mb-2">
-                                        <span class="input-group-text bg-light text-muted">vk.com/id</span>
-                                        <input type="number" class="form-control id" placeholder="ID" min="1">
-                                        <button class="btn btn-secondary btn-get" type="submit">KA-BOOM!</button>
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text bg-light text-muted">vk.com/</span>
+                                        <input 
+                                            type="text" 
+                                            class="form-control id-input" 
+                                            placeholder="адрес страницы или ID"
+                                            autocomplete="off">
+                                        <button class="btn btn-secondary btn-get" type="button">KA-BOOM!</button>
                                     </div>
-                                    <a href="javascript:void(0);" class="btn btn-success btn-dl w-100"><i class="bi bi-file-earmark-arrow-down me-2"></i>Скачать файлик</a>
+                                    
+                                    <!-- Результат преобразования (опционально, но полезно) -->
+                                    <div id="resolved-id" class="small text-muted mb-2"></div>
+
+                                    <a href="javascript:void(0);" class="btn btn-success btn-dl w-100">
+                                        <i class="bi bi-file-earmark-arrow-down me-2"></i>Скачать CSV
+                                    </a>
                                 </form>
                             </div>
 
-                            <div class="col-lg-7">
+                            <div class="col-lg-5">
                                 <h6 class="fw-bold mb-3">2. Какие данные собираем?</h6>
                                 <div class="row g-2">
                                     <div class="col-sm-6">
@@ -120,20 +135,6 @@
                                             <label class="form-check-label" for="field-city">Город</label>
                                         </div>
                                     </div>
-                                    <div class="col-sm-6">
-                                        <div class="form-check form-switch mb-2">
-                                            <input class="form-check-input field-param" type="checkbox" id="field-photo" value="photo_100">
-                                            <label class="form-check-label" for="field-photo">Фото профиля</label>
-                                        </div>
-                                        <div class="form-check form-switch mb-2">
-                                            <input class="form-check-input field-param" type="checkbox" id="field-domain" value="domain">
-                                            <label class="form-check-label" for="field-domain">Короткий адрес</label>
-                                        </div>
-                                        <div class="form-check form-switch mb-2">
-                                            <input class="form-check-input field-param" type="checkbox" id="field-contacts" value="contacts">
-                                            <label class="form-check-label" for="field-contacts">Контакты</label>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -144,15 +145,13 @@
                                     <thead class="table-light sticky-top">
                                         <tr>
                                             <th>ID</th>
-                                            <th>Фото</th>
-                                            <th>Имя/Фамилия</th>
+                                            <th>Ссылка</th>
+                                            <th>Имя Фамилия</th>
+                                            <th>Пол</th>
+                                            <th>Дата рождения</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <tr class="text-center text-muted">
-                                            <td colspan="3" class="py-4">Здесь появится список друзей после нажатия кнопки "KA-BOOM!"</td>
-                                        </tr>
-                                    </tbody>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
