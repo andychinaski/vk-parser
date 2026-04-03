@@ -208,8 +208,12 @@ btnGet.addEventListener('click', async () => {
         resolvedDiv.innerHTML = `Используется ID: <strong>${userID}</strong>`
     }
 
-    // === Запрос списка друзей ===
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Загружаем список друзей...</td></tr>`
+    // === Запрос списка друзей с надёжной пагинацией (больше 5000) ===
+   // === Надёжная загрузка всех друзей (VK часто отдаёт меньше 5000 за раз) ===
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
+        Начинаем загрузку друзей...<br>
+        <small>Запрос 1...</small>
+    </td></tr>`
 
     const checkedFields = Array.from(document.querySelectorAll('.field-param:checked'))
         .map(cb => cb.value)
@@ -217,44 +221,85 @@ btnGet.addEventListener('click', async () => {
 
     const fields = [
         'first_name', 'last_name',
-        'sex', 'bdate', 'domain',
+        'sex', 'bdate', 'domain', 'city',
         checkedFields
     ].filter(Boolean).join(',')
 
-    const params = new URLSearchParams({
-        user_id: userID,
-        access_token: localStorage[VK_STORAGE_TOKEN_ITEM_NAME],
-        v: VK_API_VERSION,
-        count: 5000,
-        fields: fields
-    })
+    let allFriendsData = []
+    let offset = 0
+    const countPerRequest = 5000
+    let requestNumber = 1
 
-    try {
-        const response = await fetchJsonp(`https://api.vk.com/method/friends.get?${params}`)
-        const data = await response.json()
+    async function loadNextBatch() {
+        try {
+            const params = new URLSearchParams({
+                user_id: userID,
+                access_token: localStorage[VK_STORAGE_TOKEN_ITEM_NAME],
+                v: VK_API_VERSION,
+                count: countPerRequest,
+                offset: offset,
+                fields: fields
+            })
 
-        if (data.error) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка VK: ${data.error.error_msg}</td></tr>`
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
+                Загрузка... Запрос ${requestNumber} (всего загружено: ${allFriendsData.length})
+            </td></tr>`
+
+            const response = await fetchJsonp(`https://api.vk.com/method/friends.get?${params}`)
+            const data = await response.json()
+
+            if (data.error) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">
+                    Ошибка VK: ${data.error.error_msg}
+                </td></tr>`
+                return
+            }
+
+            const items = data.response?.items || []
+
+            allFriendsData = allFriendsData.concat(items)
+            offset += items.length
+            requestNumber++
+
+            // Обновляем прогресс
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
+                Загрузка... Запрос ${requestNumber-1} (всего загружено: ${allFriendsData.length})
+            </td></tr>`
+
+            // Ключевой момент: продолжаем, пока приходит хотя бы 1 друг
+            if (items.length === 0) {
+                finishLoading()
+            } else {
+                // Продолжаем загрузку
+                await new Promise(r => setTimeout(r, 380))
+                loadNextBatch()
+            }
+
+        } catch (e) {
+            console.error(e)
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">
+                Ошибка соединения. Попробуйте ещё раз.
+            </td></tr>`
+        }
+    }
+
+    function finishLoading() {
+        console.log(`Загрузка завершена. Всего загружено друзей: ${allFriendsData.length}`)
+
+        if (allFriendsData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">Друзья закрыты или список пуст</td></tr>`
             return
         }
 
-        const friends = data.response?.items || []
-
-        if (friends.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Друзья закрыты или список пуст</td></tr>`
-            return
-        }
-
-        allFriends = friends
-        currentFiltered = [...friends]
+        allFriends = allFriendsData
+        currentFiltered = [...allFriendsData]
 
         renderTable(currentFiltered)
         updateFilterInfo()
-
-    } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка соединения с VK</td></tr>`
-        console.error(e)
     }
+
+    // Запускаем процесс
+    loadNextBatch()
 })
 
 // ====================== СОБЫТИЯ ФИЛЬТРОВ ======================
