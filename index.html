@@ -139,8 +139,51 @@
                             </div>
                         </div>
 
-                        <div class="border rounded">
-                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Панель фильтров -->
+                        <div class="bg-light p-3 border rounded-top" id="filter-panel">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-muted">Поиск по имени / фамилии</label>
+                                    <input type="text" id="search-name" class="form-control" placeholder="Введите имя или фамилию...">
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-bold text-muted">Пол</label>
+                                    <select id="filter-sex" class="form-select">
+                                        <option value="">Все</option>
+                                        <option value="2">Мужской</option>
+                                        <option value="1">Женский</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold text-muted">Возраст</label>
+                                    <div class="input-group">
+                                        <input type="number" id="age-from" class="form-control" placeholder="От" min="1" max="100">
+                                        <span class="input-group-text">—</span>
+                                        <input type="number" id="age-to" class="form-control" placeholder="До" min="1" max="100">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-3 d-flex gap-2">
+                                    <button id="apply-filters" class="btn btn-primary flex-fill">
+                                        <i class="bi bi-funnel-fill me-1"></i>Применить
+                                    </button>
+                                    <button id="reset-filters" class="btn btn-outline-secondary flex-fill">
+                                        Сбросить
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2 small text-muted" id="filter-info">
+                                Найдено: <strong id="count-total">0</strong> друзей • 
+                                Отображено: <strong id="count-filtered">0</strong>
+                            </div>
+                        </div>
+
+                        <!-- Таблица -->
+                        <div class="border border-top-0 rounded-bottom">
+                            <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
                                 <table class="table table-hover mb-0" id="results-table">
                                     <thead class="table-light sticky-top">
                                         <tr>

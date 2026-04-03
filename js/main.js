@@ -4,7 +4,19 @@ const btnGet = document.querySelector('.btn-get')
 const btnDl = document.querySelector('.btn-dl')
 const tbody = document.querySelector('#results-table tbody')
 
-let allFriends = [] // для будущей фильтрации
+let allFriends = []        // Все загруженные друзья
+let currentFiltered = []   // Текущие отфильтрованные данные
+
+// Элементы фильтров
+const searchInput = document.getElementById('search-name')
+const sexSelect = document.getElementById('filter-sex')
+const ageFromInput = document.getElementById('age-from')
+const ageToInput = document.getElementById('age-to')
+const applyBtn = document.getElementById('apply-filters')
+const resetBtn = document.getElementById('reset-filters')
+const countTotalEl = document.getElementById('count-total')
+const countFilteredEl = document.getElementById('count-filtered')
+const resolvedDiv = document.getElementById('resolved-id')
 
 // Проверка токена
 if (!isVkTokenActive) {
@@ -12,35 +24,134 @@ if (!isVkTokenActive) {
     if (alert) alert.classList.remove('d-none')
 }
 
+// ====================== ФУНКЦИИ ФИЛЬТРАЦИИ ======================
+
+function calculateAge(bdate) {
+    if (!bdate) return null
+    const parts = bdate.split('.')
+    if (parts.length < 3) return null
+    const year = parseInt(parts[2])
+    if (isNaN(year)) return null
+    return new Date().getFullYear() - year
+}
+
+function applyFilters() {
+    const searchText = searchInput.value.toLowerCase().trim()
+    const selectedSex = sexSelect.value
+    const fromAge = parseInt(ageFromInput.value) || 0
+    const toAge = parseInt(ageToInput.value) || 999
+
+    currentFiltered = allFriends.filter(friend => {
+        // Поиск по имени и фамилии
+        const fullName = `${friend.first_name || ''} ${friend.last_name || ''}`.toLowerCase()
+        if (searchText && !fullName.includes(searchText)) return false
+
+        // Фильтр по полу
+        if (selectedSex && friend.sex !== parseInt(selectedSex)) return false
+
+        // Фильтр по возрасту
+        const age = calculateAge(friend.bdate)
+        if (age !== null) {
+            if (age < fromAge || age > toAge) return false
+        } else if (fromAge > 0 || toAge < 999) {
+            // Если возраст задан, но дата рождения отсутствует — скрываем
+            return false
+        }
+
+        return true
+    })
+
+    renderTable(currentFiltered)
+    updateFilterInfo()
+}
+
+function renderTable(friends) {
+    tbody.innerHTML = ''
+
+    if (friends.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">Нет данных, удовлетворяющих фильтрам</td></tr>`
+        return
+    }
+
+    let csvRows = [`ID;Ссылка;Имя;Фамилия;Пол;Дата рождения`]
+
+    friends.forEach(friend => {
+        const link = friend.domain 
+            ? `https://vk.com/${friend.domain}` 
+            : `https://vk.com/id${friend.id}`
+
+        const sexText = friend.sex === 1 ? 'Ж' : friend.sex === 2 ? 'М' : '—'
+
+        // Строка таблицы
+        const rowHTML = `
+            <tr>
+                <td>${friend.id}</td>
+                <td><a href="${link}" target="_blank" class="text-decoration-none">${link}</a></td>
+                <td>${friend.first_name || ''} ${friend.last_name || ''}</td>
+                <td>${sexText}</td>
+                <td>${friend.bdate || '—'}</td>
+            </tr>`
+        tbody.innerHTML += rowHTML
+
+        // Строка для CSV
+        const csvLine = [
+            friend.id,
+            link,
+            `"${friend.first_name || ''}"`,
+            `"${friend.last_name || ''}"`,
+            sexText,
+            `"${friend.bdate || ''}"`
+        ].join(';')
+
+        csvRows.push(csvLine)
+    })
+
+    // Обновляем кнопку скачивания
+    const csvContent = csvRows.join('\n')
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+
+    btnDl.style.display = 'inline-block'
+    btnDl.href = url
+    btnDl.download = `vk_friends_${document.querySelector('.id-input').value.trim() || 'list'}.csv`
+    btnDl.textContent = `Скачать CSV (${friends.length} друзей)`
+}
+
+function updateFilterInfo() {
+    countTotalEl.textContent = allFriends.length
+    countFilteredEl.textContent = currentFiltered.length
+}
+
+// ====================== ОСНОВНОЙ ОБРАБОТЧИК ======================
+
 btnGet.addEventListener('click', async () => {
     const inputValue = document.querySelector('.id-input').value.trim()
-    const resolvedDiv = document.getElementById('resolved-id')
-    
+
     tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Определяем ID пользователя...</td></tr>`
     btnDl.style.display = 'none'
     resolvedDiv.textContent = ''
 
     if (!inputValue) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Введите ID или ссылку</td></tr>`
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Введите ID или ссылку на профиль</td></tr>`
         return
     }
 
     let userID = inputValue
 
-    // === Автоопределение: если введена ссылка или короткое имя ===
+    // Очистка и нормализация ввода
     const screenName = inputValue
         .replace(/https?:\/\//i, '')
         .replace(/vk\.com\//i, '')
         .replace(/vkontakte\.ru\//i, '')
         .trim()
 
-    // Если это не чистые цифры и не начинается с "id" + цифры — нужно резолвить через API
-    const isNumericID = /^\d+$/.test(screenName)
+    const isPureNumeric = /^\d+$/.test(screenName)
     const isIdFormat = /^id\d+$/i.test(screenName)
 
-    if (!isNumericID && !isIdFormat) {
-        // Нужно преобразовать screen_name → object_id
-        resolvedDiv.textContent = 'Преобразуем короткий адрес в ID...'
+    // Если это не чистый ID — нужно резолвить через VK API
+    if (!isPureNumeric && !isIdFormat) {
+        resolvedDiv.textContent = 'Преобразуем ссылку в ID...'
 
         try {
             const params = new URLSearchParams({
@@ -53,32 +164,28 @@ btnGet.addEventListener('click', async () => {
             const data = await response.json()
 
             if (data.error || !data.response || !data.response.object_id) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Не удалось найти пользователя по ссылке</td></tr>`
-                resolvedDiv.textContent = 'Ошибка: неверная ссылка или закрытый профиль'
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Не удалось найти пользователя по этой ссылке</td></tr>`
+                resolvedDiv.textContent = 'Ошибка: неверная ссылка'
                 return
             }
 
             userID = data.response.object_id
-            resolvedDiv.innerHTML = `✅ Найден ID пользователя: <strong>${userID}</strong>`
+            resolvedDiv.innerHTML = `✅ ID пользователя: <strong>${userID}</strong>`
 
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка при разрешении ссылки</td></tr>`
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка при обработке ссылки</td></tr>`
             console.error(e)
             return
         }
     } else {
-        // Это уже числовой ID
-        if (isIdFormat) {
-            userID = screenName.replace(/^id/i, '')
-        }
+        // Уже числовой ID
+        if (isIdFormat) userID = screenName.replace(/^id/i, '')
         resolvedDiv.innerHTML = `Используется ID: <strong>${userID}</strong>`
     }
-    if (!userID) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Укажите ID пользователя</td></tr>`
-        return
-    }
 
-    // === 1. Собираем fields из чекбоксов ===
+    // === Запрос списка друзей ===
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Загружаем список друзей...</td></tr>`
+
     const checkedFields = Array.from(document.querySelectorAll('.field-param:checked'))
         .map(cb => cb.value)
         .join(',')
@@ -89,7 +196,6 @@ btnGet.addEventListener('click', async () => {
         checkedFields
     ].filter(Boolean).join(',')
 
-    // === 2. Запрос к VK API ===
     const params = new URLSearchParams({
         user_id: userID,
         access_token: localStorage[VK_STORAGE_TOKEN_ITEM_NAME],
@@ -104,79 +210,40 @@ btnGet.addEventListener('click', async () => {
 
         if (data.error) {
             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка VK: ${data.error.error_msg}</td></tr>`
-            console.error(data.error)
             return
         }
 
         const friends = data.response?.items || []
-        allFriends = friends
 
         if (friends.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Друзья закрыты или список пуст</td></tr>`
             return
         }
 
-        // === 3. Отрисовка таблицы + подготовка CSV ===
-        tbody.innerHTML = ''
-        let csvRows = [`ID;Ссылка;Имя;Фамилия;Пол;Дата рождения${checkedFields ? ';' + checkedFields.split(',').join(';') : ''}`]
+        allFriends = friends
+        currentFiltered = [...friends]
 
-        friends.forEach(friend => {
-            const link = friend.domain 
-                ? `https://vk.com/${friend.domain}` 
-                : `https://vk.com/id${friend.id}`
-
-            const sexText = friend.sex === 1 ? 'Ж' : friend.sex === 2 ? 'М' : '—'
-
-            // Строка таблицы (без фото)
-            const rowHTML = `
-                <tr>
-                    <td>${friend.id}</td>
-                    <td><a href="${link}" target="_blank" class="text-decoration-none">${link}</a></td>
-                    <td>${friend.first_name} ${friend.last_name}</td>
-                    <td>${sexText}</td>
-                    <td>${friend.bdate || '—'}</td>
-                </tr>`
-            tbody.innerHTML += rowHTML
-
-            // Строка для CSV с правильной кодировкой и экранированием
-            const extraFields = checkedFields 
-                ? checkedFields.split(',').map(field => {
-                    const value = (friend[field] || '')
-                    // Если значение — объект (например city), берём title
-                    const text = typeof value === 'object' && value !== null ? (value.title || '') : value
-                    return `"${text.toString().replace(/"/g, '""')}"`
-                }).join(';')
-                : ''
-
-            const csvLine = [
-                friend.id,
-                link,
-                `"${friend.first_name}"`,
-                `"${friend.last_name}"`,
-                sexText,
-                `"${friend.bdate || ''}"`,
-                extraFields
-            ].join(';')
-
-            csvRows.push(csvLine)
-        })
-
-        // === 4. Скачивание CSV с BOM ===
-        const csvContent = csvRows.join('\n')
-        const BOM = '\uFEFF'
-        const blob = new Blob([BOM + csvContent], { 
-            type: 'text/csv;charset=utf-8;' 
-        })
-
-        const url = URL.createObjectURL(blob)
-
-        btnDl.style.display = 'inline-block'
-        btnDl.href = url
-        btnDl.download = `vk_friends_${userID}.csv`
-        btnDl.textContent = `Скачать CSV (${friends.length} друзей)`
+        renderTable(currentFiltered)
+        updateFilterInfo()
 
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка соединения с VK. Проверьте токен.</td></tr>`
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger">Ошибка соединения с VK</td></tr>`
         console.error(e)
     }
 })
+
+// ====================== СОБЫТИЯ ФИЛЬТРОВ ======================
+
+applyBtn.addEventListener('click', applyFilters)
+resetBtn.addEventListener('click', () => {
+    searchInput.value = ''
+    sexSelect.value = ''
+    ageFromInput.value = ''
+    ageToInput.value = ''
+    currentFiltered = [...allFriends]
+    renderTable(currentFiltered)
+    updateFilterInfo()
+})
+
+// Реал-тайм поиск при вводе текста
+searchInput.addEventListener('input', applyFilters)
