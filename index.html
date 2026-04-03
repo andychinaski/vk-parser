@@ -141,12 +141,14 @@
 
                         <!-- Панель фильтров -->
                         <div class="bg-light p-3 border rounded-top" id="filter-panel">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label class="form-label small fw-bold text-muted">Поиск по имени / фамилии</label>
-                                    <input type="text" id="search-name" class="form-control" placeholder="Введите имя или фамилию...">
+                            <div class="row g-3">
+                                <!-- Поиск по имени -->
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold text-muted">Поиск по имени</label>
+                                    <input type="text" id="search-name" class="form-control" placeholder="Имя или фамилия...">
                                 </div>
-                                
+
+                                <!-- Пол -->
                                 <div class="col-md-2">
                                     <label class="form-label small fw-bold text-muted">Пол</label>
                                     <select id="filter-sex" class="form-select">
@@ -155,29 +157,74 @@
                                         <option value="1">Женский</option>
                                     </select>
                                 </div>
-                                
-                                <div class="col-md-3">
-                                    <label class="form-label small fw-bold text-muted">Возраст</label>
-                                    <div class="input-group">
-                                        <input type="number" id="age-from" class="form-control" placeholder="От" min="1" max="100">
-                                        <span class="input-group-text">—</span>
-                                        <input type="number" id="age-to" class="form-control" placeholder="До" min="1" max="100">
+
+                                <!-- Фильтр по дате рождения / возрасту -->
+                                <div class="col-md-7">
+                                    <label class="form-label small fw-bold text-muted">Фильтр по возрасту или дате рождения</label>
+                                    
+                                    <div class="row g-2 align-items-end">
+                                        <!-- Тип фильтра -->
+                                        <div class="col-12 col-sm-4">
+                                            <select id="date-filter-type" class="form-select">
+                                                <option value="age">Возраст (лет)</option>
+                                                <option value="birthdate">Дата рождения</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Блок для возраста -->
+                                        <div class="col-12 col-sm-8" id="age-block">
+                                            <div class="input-group">
+                                                <input type="number" id="age-from" class="form-control" placeholder="От" min="1" max="120">
+                                                <span class="input-group-text">—</span>
+                                                <input type="number" id="age-to" class="form-control" placeholder="До" min="1" max="120">
+                                            </div>
+                                        </div>
+
+                                        <!-- Блок для даты рождения -->
+                                        <div class="col-12 col-sm-8 d-none" id="birthdate-block">
+                                            <div class="row g-2">
+                                                <div class="col-4">
+                                                    <input type="number" id="birth-day" class="form-control" placeholder="День" min="1" max="31">
+                                                </div>
+                                                <div class="col-4">
+                                                    <select id="birth-month" class="form-select">
+                                                        <option value="">Месяц</option>
+                                                        <option value="1">Январь</option>
+                                                        <option value="2">Февраль</option>
+                                                        <option value="3">Март</option>
+                                                        <option value="4">Апрель</option>
+                                                        <option value="5">Май</option>
+                                                        <option value="6">Июнь</option>
+                                                        <option value="7">Июль</option>
+                                                        <option value="8">Август</option>
+                                                        <option value="9">Сентябрь</option>
+                                                        <option value="10">Октябрь</option>
+                                                        <option value="11">Ноябрь</option>
+                                                        <option value="12">Декабрь</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-4">
+                                                    <input type="number" id="birth-year" class="form-control" placeholder="Год" min="1900" max="2026">
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <div class="col-md-3 d-flex gap-2">
+
+                                <!-- Кнопки -->
+                                <div class="col-12 col-sm-12 d-flex gap-2 mt-2">
                                     <button id="apply-filters" class="btn btn-primary flex-fill">
-                                        <i class="bi bi-funnel-fill me-1"></i>Применить
+                                        <i class="bi bi-funnel-fill me-1"></i>Применить фильтры
                                     </button>
                                     <button id="reset-filters" class="btn btn-outline-secondary flex-fill">
-                                        Сбросить
+                                        Сбросить всё
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div class="mt-2 small text-muted" id="filter-info">
-                                Найдено: <strong id="count-total">0</strong> друзей • 
-                                Отображено: <strong id="count-filtered">0</strong>
+                                Всего друзей: <strong id="count-total">0</strong> • 
+                                Показано после фильтра: <strong id="count-filtered">0</strong>
                             </div>
                         </div>
 
@@ -192,6 +239,7 @@
                                             <th>Имя Фамилия</th>
                                             <th>Пол</th>
                                             <th>Дата рождения</th>
+                                            <th>Город</th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>

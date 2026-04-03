@@ -8,15 +8,14 @@ let allFriends = []        // Все загруженные друзья
 let currentFiltered = []   // Текущие отфильтрованные данные
 
 // Элементы фильтров
-const searchInput = document.getElementById('search-name')
-const sexSelect = document.getElementById('filter-sex')
-const ageFromInput = document.getElementById('age-from')
-const ageToInput = document.getElementById('age-to')
-const applyBtn = document.getElementById('apply-filters')
-const resetBtn = document.getElementById('reset-filters')
-const countTotalEl = document.getElementById('count-total')
+const searchInput     = document.getElementById('search-name')
+const sexSelect       = document.getElementById('filter-sex')
+const dateFilterType  = document.getElementById('date-filter-type')
+const applyBtn        = document.getElementById('apply-filters')
+const resetBtn        = document.getElementById('reset-filters')
+const countTotalEl    = document.getElementById('count-total')
 const countFilteredEl = document.getElementById('count-filtered')
-const resolvedDiv = document.getElementById('resolved-id')
+const resolvedDiv     = document.getElementById('resolved-id')
 
 // Проверка токена
 if (!isVkTokenActive) {
@@ -28,34 +27,55 @@ if (!isVkTokenActive) {
 
 function calculateAge(bdate) {
     if (!bdate) return null
-    const parts = bdate.split('.')
-    if (parts.length < 3) return null
-    const year = parseInt(parts[2])
-    if (isNaN(year)) return null
-    return new Date().getFullYear() - year
+    const yearPart = bdate.split('.').pop()
+    const year = parseInt(yearPart)
+    return isNaN(year) ? null : new Date().getFullYear() - year
 }
 
 function applyFilters() {
     const searchText = searchInput.value.toLowerCase().trim()
     const selectedSex = sexSelect.value
-    const fromAge = parseInt(ageFromInput.value) || 0
-    const toAge = parseInt(ageToInput.value) || 999
+    const filterType = dateFilterType.value
 
     currentFiltered = allFriends.filter(friend => {
-        // Поиск по имени и фамилии
+        // Поиск по имени
         const fullName = `${friend.first_name || ''} ${friend.last_name || ''}`.toLowerCase()
         if (searchText && !fullName.includes(searchText)) return false
 
-        // Фильтр по полу
+        // Пол
         if (selectedSex && friend.sex !== parseInt(selectedSex)) return false
 
-        // Фильтр по возрасту
-        const age = calculateAge(friend.bdate)
-        if (age !== null) {
-            if (age < fromAge || age > toAge) return false
-        } else if (fromAge > 0 || toAge < 999) {
-            // Если возраст задан, но дата рождения отсутствует — скрываем
-            return false
+        // Фильтр по возрасту или дате рождения
+        if (filterType === 'age') {
+            const ageFrom = parseInt(document.getElementById('age-from').value) || 0
+            const ageTo   = parseInt(document.getElementById('age-to').value)   || 999
+
+            const age = calculateAge(friend.bdate)
+            if (age !== null) {
+                if (age < ageFrom || age > ageTo) return false
+            } else if (ageFrom > 0 || ageTo < 999) {
+                return false
+            }
+        } 
+        else if (filterType === 'birthdate') {
+            const day   = parseInt(document.getElementById('birth-day').value)
+            const month = parseInt(document.getElementById('birth-month').value)
+            const year  = parseInt(document.getElementById('birth-year').value)
+
+            if (!friend.bdate) {
+                // Если дата рождения отсутствует, но пользователь что-то указал — скрываем
+                if (day || month || year) return false
+                return true
+            }
+
+            const parts = friend.bdate.split('.')
+            const bDay   = parseInt(parts[0])
+            const bMonth = parseInt(parts[1])
+            const bYear  = parseInt(parts[2])
+
+            if (day   && day   !== bDay)   return false
+            if (month && month !== bMonth) return false
+            if (year  && year  !== bYear)  return false
         }
 
         return true
@@ -69,11 +89,11 @@ function renderTable(friends) {
     tbody.innerHTML = ''
 
     if (friends.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">Нет данных, удовлетворяющих фильтрам</td></tr>`
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Нет данных по выбранным фильтрам</td></tr>`
         return
     }
 
-    let csvRows = [`ID;Ссылка;Имя;Фамилия;Пол;Дата рождения`]
+    let csvRows = [`ID;Ссылка;Имя;Фамилия;Пол;Дата рождения;Город`]
 
     friends.forEach(friend => {
         const link = friend.domain 
@@ -81,6 +101,9 @@ function renderTable(friends) {
             : `https://vk.com/id${friend.id}`
 
         const sexText = friend.sex === 1 ? 'Ж' : friend.sex === 2 ? 'М' : '—'
+        const cityName = friend.city 
+            ? (typeof friend.city === 'object' ? friend.city.title || '—' : '—') 
+            : '—'
 
         // Строка таблицы
         const rowHTML = `
@@ -90,6 +113,7 @@ function renderTable(friends) {
                 <td>${friend.first_name || ''} ${friend.last_name || ''}</td>
                 <td>${sexText}</td>
                 <td>${friend.bdate || '—'}</td>
+                <td>${cityName}</td>
             </tr>`
         tbody.innerHTML += rowHTML
 
@@ -100,13 +124,14 @@ function renderTable(friends) {
             `"${friend.first_name || ''}"`,
             `"${friend.last_name || ''}"`,
             sexText,
-            `"${friend.bdate || ''}"`
+            `"${friend.bdate || ''}"`,
+            `"${cityName}"`
         ].join(';')
 
         csvRows.push(csvLine)
     })
 
-    // Обновляем кнопку скачивания
+    // Скачивание CSV
     const csvContent = csvRows.join('\n')
     const BOM = '\uFEFF'
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -247,3 +272,21 @@ resetBtn.addEventListener('click', () => {
 
 // Реал-тайм поиск при вводе текста
 searchInput.addEventListener('input', applyFilters)
+
+// === Переключение между Возраст и Дата рождения ===
+dateFilterType.addEventListener('change', () => {
+    const ageBlock = document.getElementById('age-block')
+    const birthdateBlock = document.getElementById('birthdate-block')
+
+    if (dateFilterType.value === 'age') {
+        ageBlock.classList.remove('d-none')
+        birthdateBlock.classList.add('d-none')
+    } else {
+        ageBlock.classList.add('d-none')
+        birthdateBlock.classList.remove('d-none')
+    }
+})
+
+// Начальное состояние — показываем блок возраста
+document.getElementById('age-block').classList.remove('d-none')
+document.getElementById('birthdate-block').classList.add('d-none')
