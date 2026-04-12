@@ -162,16 +162,19 @@
                                 <div class="col-md-7">
                                     <label class="form-label small fw-bold text-muted">Фильтр по возрасту или дате рождения</label>
                                     
-                                    <div class="row g-2 align-items-end">
-                                        <!-- Тип фильтра -->
+                                    <div class="row g-2 align-items-top">
                                         <div class="col-12 col-sm-4">
-                                            <select id="date-filter-type" class="form-select">
+                                            <select id="date-filter-type" class="form-select mb-1">
                                                 <option value="age">Возраст (лет)</option>
                                                 <option value="birthdate">Дата рождения</option>
                                             </select>
+                                            
+                                            <div class="form-check form-switch small">
+                                                <input class="form-check-input" type="checkbox" id="filter-no-bdate">
+                                                <label class="form-check-label mb-0" for="filter-no-bdate">Без указанной даты</label>
+                                            </div>
                                         </div>
 
-                                        <!-- Блок для возраста -->
                                         <div class="col-12 col-sm-8" id="age-block">
                                             <div class="input-group">
                                                 <input type="number" id="age-from" class="form-control" placeholder="От" min="1" max="120">
@@ -180,7 +183,6 @@
                                             </div>
                                         </div>
 
-                                        <!-- Блок для даты рождения -->
                                         <div class="col-12 col-sm-8 d-none" id="birthdate-block">
                                             <div class="row g-2">
                                                 <div class="col-4">

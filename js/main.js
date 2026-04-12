@@ -16,6 +16,7 @@ const resetBtn        = document.getElementById('reset-filters')
 const countTotalEl    = document.getElementById('count-total')
 const countFilteredEl = document.getElementById('count-filtered')
 const resolvedDiv     = document.getElementById('resolved-id')
+const noBdateCheckbox = document.getElementById('filter-no-bdate');
 
 // Проверка токена
 if (!isVkTokenActive) {
@@ -46,36 +47,51 @@ function applyFilters() {
         if (selectedSex && friend.sex !== parseInt(selectedSex)) return false
 
         // Фильтр по возрасту или дате рождения
-        if (filterType === 'age') {
-            const ageFrom = parseInt(document.getElementById('age-from').value) || 0
-            const ageTo   = parseInt(document.getElementById('age-to').value)   || 999
+        const showNoBdate = noBdateCheckbox.checked;
 
-            const age = calculateAge(friend.bdate)
-            if (age !== null) {
-                if (age < ageFrom || age > ageTo) return false
-            } else if (ageFrom > 0 || ageTo < 999) {
-                return false
+        if (filterType === 'age') {
+            const ageFrom = parseInt(document.getElementById('age-from').value) || 0;
+            const ageTo   = parseInt(document.getElementById('age-to').value)   || 999;
+            const age = calculateAge(friend.bdate);
+
+            // Если стоит галка "Без указанной даты"
+            if (showNoBdate) {
+                // В ВК bdate может быть "25.10" (без года). В таком случае calculateAge вернет null
+                if (age !== null) return false;
+            } else {
+                // Стандартный поиск по возрасту
+                if (age !== null) {
+                    if (age < ageFrom || age > ageTo) return false;
+                } else if (ageFrom > 0 || ageTo < 999) {
+                    // Если возраст не определен, а границы заданы — скрываем пользователя
+                    return false;
+                }
             }
         } 
         else if (filterType === 'birthdate') {
-            const day   = parseInt(document.getElementById('birth-day').value)
-            const month = parseInt(document.getElementById('birth-month').value)
-            const year  = parseInt(document.getElementById('birth-year').value)
+            const day   = parseInt(document.getElementById('birth-day').value);
+            const month = parseInt(document.getElementById('birth-month').value);
+            const year  = parseInt(document.getElementById('birth-year').value);
 
-            if (!friend.bdate) {
-                // Если дата рождения отсутствует, но пользователь что-то указал — скрываем
-                if (day || month || year) return false
-                return true
+            // Если стоит галка "Без указанной даты"
+            if (showNoBdate) {
+                if (friend.bdate) return false;
+            } else {
+                // Стандартный поиск по дате
+                if (!friend.bdate) {
+                    if (day || month || year) return false;
+                    return true;
+                }
+
+                const parts = friend.bdate.split('.');
+                const bDay   = parseInt(parts[0]);
+                const bMonth = parseInt(parts[1]);
+                const bYear  = parseInt(parts[2]);
+
+                if (day   && day   !== bDay)   return false;
+                if (month && month !== bMonth) return false;
+                if (year  && year  !== bYear)  return false;
             }
-
-            const parts = friend.bdate.split('.')
-            const bDay   = parseInt(parts[0])
-            const bMonth = parseInt(parts[1])
-            const bYear  = parseInt(parts[2])
-
-            if (day   && day   !== bDay)   return false
-            if (month && month !== bMonth) return false
-            if (year  && year  !== bYear)  return false
         }
 
         return true
@@ -241,45 +257,58 @@ btnGet.addEventListener('click', async () => {
                 fields: fields
             })
 
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
-                Загрузка... Запрос ${requestNumber} (всего загружено: ${allFriendsData.length})
-            </td></tr>`
-
             const response = await fetchJsonp(`https://api.vk.com/method/friends.get?${params}`)
             const data = await response.json()
 
             if (data.error) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">
-                    Ошибка VK: ${data.error.error_msg}
-                </td></tr>`
+                // Если ВК ругнулся, но мы уже успели что-то скачать — не сбрасываем данные, а выводим что есть
+                if (allFriendsData.length > 0) {
+                    console.warn('Загрузка прервана ошибкой ВК, но часть данных сохранена:', data.error.error_msg)
+                    finishLoading()
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">
+                        Ошибка VK: ${data.error.error_msg}
+                    </td></tr>`
+                }
                 return
             }
 
-            const items = data.response?.items || []
+            const totalCount = data.response.count || 0 // Общее количество друзей по паспорту ВК
+            const items = data.response.items || []
 
             allFriendsData = allFriendsData.concat(items)
-            offset += items.length
+            
+            // В ВК безопаснее прибавлять размер шага, а не items.length, 
+            // так как иногда ВК отдает чуть меньше элементов из-за удаленных/скрытых страниц
+            offset += countPerRequest 
             requestNumber++
 
-            // Обновляем прогресс
+            // Обновляем прогресс, теперь показываем понятную юзеру стату
             tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
-                Загрузка... Запрос ${requestNumber-1} (всего загружено: ${allFriendsData.length})
+                Загрузка... Загружено <strong>${allFriendsData.length}</strong> из <strong>${totalCount}</strong>
             </td></tr>`
 
-            // Ключевой момент: продолжаем, пока приходит хотя бы 1 друг
-            if (items.length === 0) {
+            // === ТО САМОЕ СТОП-СЛОВО ===
+            // Сворачиваемся, если загрузили всё (>= totalCount) 
+            // ИЛИ если ВК вдруг вернул пустой массив (на случай багов API)
+            if (allFriendsData.length >= totalCount || items.length === 0) {
                 finishLoading()
             } else {
                 // Продолжаем загрузку
-                await new Promise(r => setTimeout(r, 380))
+                await new Promise(r => setTimeout(r, 350)) // 350ms вполне ок для лимитов ВК
                 loadNextBatch()
             }
 
         } catch (e) {
             console.error(e)
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">
-                Ошибка соединения. Попробуйте ещё раз.
-            </td></tr>`
+            // Если отвалился интернет или CORS, но данные уже есть — тоже сохраняем их
+            if (allFriendsData.length > 0) {
+                finishLoading()
+            } else {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">
+                    Ошибка соединения. Попробуйте ещё раз.
+                </td></tr>`
+            }
         }
     }
 
@@ -306,14 +335,15 @@ btnGet.addEventListener('click', async () => {
 
 applyBtn.addEventListener('click', applyFilters)
 resetBtn.addEventListener('click', () => {
-    searchInput.value = ''
-    sexSelect.value = ''
-    ageFromInput.value = ''
-    ageToInput.value = ''
-    currentFiltered = [...allFriends]
-    renderTable(currentFiltered)
-    updateFilterInfo()
-})
+    searchInput.value = '';
+    sexSelect.value = '';
+    document.getElementById('age-from').value = ''; // почистим и инпуты заодно
+    document.getElementById('age-to').value = '';
+    noBdateCheckbox.checked = false; // <-- СБРОС ГАЛОЧКИ
+    currentFiltered = [...allFriends];
+    renderTable(currentFiltered);
+    updateFilterInfo();
+});
 
 // Реал-тайм поиск при вводе текста
 searchInput.addEventListener('input', applyFilters)
